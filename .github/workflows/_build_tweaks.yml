@@ -1,0 +1,332 @@
+name: Build Tweaks (Helper)
+
+on:
+  workflow_call:
+    inputs:
+      enable_ytabc:
+        type: boolean
+        required: true
+        default: true
+
+      enable_ytweaks:
+        type: boolean
+        required: true
+        default: true
+
+      enable_youpip:
+        type: boolean
+        required: true
+        default: true
+
+      enable_vbyt:
+        type: boolean
+        required: true
+        default: true
+
+      enable_demc:
+        type: boolean
+        required: true
+        default: true
+
+      enable_ryd:
+        type: boolean
+        required: true
+        default: true
+
+      enable_ytvo:
+        type: boolean
+        required: true
+        default: true
+
+      enable_ygc:
+        type: boolean
+        required: true
+        default: true
+
+      enable_yq:
+        type: boolean
+        required: true
+        default: true
+
+      enable_ycq:
+        type: boolean
+        required: true
+        default: true
+
+      enable_ythfs:
+        type: boolean
+        required: true
+        default: true
+
+      enable_ygs:
+        type: boolean
+        required: true
+        default: true
+
+      enable_ytuhd:
+        type: boolean
+        required: true
+        default: true
+
+      tweak_url:
+        type: string
+        required: false
+        default: ""
+
+    secrets:
+      TWEAK_URL:
+        required: false
+
+jobs:
+  build-tweaks:
+    name: Build Tweaks
+    runs-on: macos-latest
+
+    steps:
+      - name: Mask sensitive tweak URL
+        if: ${{ inputs.tweak_url != '' }}
+        run: echo "::add-mask::${{ inputs.tweak_url }}"
+
+      - name: Install Dependencies
+        run: brew install make ldid dpkg
+
+      - name: Set PATH environment variable
+        run: |
+          echo "$(brew --prefix make)/libexec/gnubin" >> $GITHUB_PATH
+          echo "THEOS=${{ github.workspace }}/theos" >> $GITHUB_ENV
+
+      - name: Cache Theos
+        if: ${{ inputs.enable_ytabc || inputs.enable_ytweaks || inputs.enable_youpip || inputs.enable_vbyt || inputs.enable_demc || inputs.enable_ryd || inputs.enable_ytvo || inputs.enable_ygc || inputs.enable_yq || inputs.enable_ycq || inputs.enable_ythfs || inputs.enable_ygs || inputs.enable_ytuhd }}
+        id: theos
+        uses: actions/cache@v5
+        env:
+          cache-name: theos_cache_9bc7340
+        with:
+          path: theos/
+          key: ${{ env.cache-name }}
+          restore-keys: ${{ env.cache-name }}
+
+      - name: Setup Theos
+        if: ${{ (inputs.enable_ytabc || inputs.enable_ytweaks || inputs.enable_youpip || inputs.enable_vbyt || inputs.enable_demc || inputs.enable_ryd || inputs.enable_ytvo || inputs.enable_ygc || inputs.enable_yq || inputs.enable_ycq || inputs.enable_ythfs || inputs.enable_ygs || inputs.enable_ytuhd) && steps.theos.outputs.cache-hit != 'true' }}
+        uses: actions/checkout@v6
+        with:
+          repository: theos/theos
+          ref: 9bc73406cf80b711ef4d02c15ff1dedc4478a275
+          path: theos
+          submodules: recursive
+
+      - name: Download iOS SDK
+        if: ${{ (inputs.enable_ytabc || inputs.enable_ytweaks || inputs.enable_youpip || inputs.enable_vbyt || inputs.enable_demc || inputs.enable_ryd || inputs.enable_ytvo || inputs.enable_ygc || inputs.enable_yq || inputs.enable_ycq || inputs.enable_ythfs || inputs.enable_ygs || inputs.enable_ytuhd) && steps.theos.outputs.cache-hit != 'true' }}
+        run: |
+          git clone --quiet -n --depth=1 --filter=tree:0 https://github.com/theos/sdks/
+          cd sdks
+          git sparse-checkout set --no-cone iPhoneOS16.5.sdk
+          git checkout
+          mv *.sdk $THEOS/sdks
+
+      - name: Download DTKACE Tweak
+        env:
+          INPUT_URL: ${{ inputs.tweak_url }}
+          SECRET_URL: ${{ secrets.TWEAK_URL }}
+        run: |
+          TWEAK_URL="${INPUT_URL:-$SECRET_URL}"
+          if [ -z "$TWEAK_URL" ]; then
+            echo "::error::No tweak URL provided. Please enter tweak_url or configure secret.TWEAK_URL in repository Secrets."
+            exit 1
+          fi
+          
+          # Convert Dropbox preview links to direct download links
+          if [[ "$TWEAK_URL" == *"dropbox.com"* ]]; then
+            if [[ "$TWEAK_URL" == *"dl=0"* ]]; then
+              TWEAK_URL="${TWEAK_URL//dl=0/dl=1}"
+            elif [[ "$TWEAK_URL" != *"dl=1"* ]]; then
+              if [[ "$TWEAK_URL" == *"?"* ]]; then
+                TWEAK_URL="${TWEAK_URL}&dl=1"
+              else
+                TWEAK_URL="${TWEAK_URL}?dl=1"
+              fi
+            fi
+          fi
+          
+          echo "Downloading tweak package..."
+          curl -fSL "$TWEAK_URL" -o ytkace.deb
+          
+          file_type=$(file --mime-type -b ytkace.deb 2>/dev/null || true)
+          echo "Downloaded file type: $file_type, size: $(wc -c < ytkace.deb) bytes"
+          
+          if ! dpkg-deb -I ytkace.deb >/dev/null 2>&1; then
+            echo "::error::Validation failed: The file is not a valid DEB file (detected type: $file_type)."
+            head -n 20 ytkace.deb || true
+            exit 1
+          fi
+          echo "DEB validation passed successfully!"
+
+      - name: Clone YouTubeHeader
+        if: ${{ inputs.enable_ytabc || inputs.enable_ytweaks || inputs.enable_youpip || inputs.enable_vbyt || inputs.enable_demc || inputs.enable_ryd || inputs.enable_ytvo || inputs.enable_ygc || inputs.enable_yq || inputs.enable_ycq || inputs.enable_ythfs || inputs.enable_ygs || inputs.enable_ytuhd }}
+        run: |
+          if [ -d "$THEOS/include/YouTubeHeader" ]; then
+            cd $THEOS/include/YouTubeHeader && git pull
+          else
+            cd $THEOS/include && git clone --quiet --depth=1 https://github.com/PoomSmart/YouTubeHeader.git
+          fi
+          if [ "${{ inputs.enable_demc }}" = "true" ]; then
+            rm -rf "$THEOS/include/YTHeaders"
+            cp -r "$THEOS/include/YouTubeHeader" "$THEOS/include/YTHeaders"
+          fi
+
+      - name: Clone PSHeader
+        if: ${{ inputs.enable_ytabc || inputs.enable_ytweaks || inputs.enable_youpip || inputs.enable_vbyt || inputs.enable_demc || inputs.enable_ryd || inputs.enable_ytvo || inputs.enable_ygc || inputs.enable_yq || inputs.enable_ycq || inputs.enable_ythfs || inputs.enable_ygs || inputs.enable_ytuhd }}
+        run: |
+          if [ -d "$THEOS/include/PSHeader" ]; then
+            cd $THEOS/include/PSHeader && git pull
+          else
+            cd $THEOS/include && git clone --quiet --depth=1 https://github.com/PoomSmart/PSHeader.git
+          fi
+
+      - name: Clone YTVideoOverlay
+        if: ${{ inputs.enable_ytvo || inputs.enable_yq || inputs.enable_ygc || inputs.enable_youpip || inputs.enable_ycq || inputs.enable_ytuhd }}
+        run: git clone --quiet --depth=1 https://github.com/PoomSmart/YTVideoOverlay.git
+
+      - name: Clone YouGroupSettings
+        if: ${{ inputs.enable_ygs || inputs.enable_youpip || inputs.enable_yq || inputs.enable_ycq || inputs.enable_vbyt || inputs.enable_ryd || inputs.enable_demc || inputs.enable_ytabc || inputs.enable_ytweaks || inputs.enable_ygc || inputs.enable_ythfs || inputs.enable_ytuhd }}
+        run: git clone --quiet --depth=1 https://github.com/PoomSmart/YouGroupSettings.git
+
+      - name: Clone YTABConfig
+        if: ${{ inputs.enable_ytabc }}
+        run: git clone --quiet --depth=1 https://github.com/PoomSmart/YTABConfig.git
+
+      - name: Clone YTweaks
+        if: ${{ inputs.enable_ytweaks }}
+        run: git clone --quiet --depth=1 https://github.com/fosterbarnes/YTweaks.git
+
+      - name: Clone YouPiP
+        if: ${{ inputs.enable_youpip }}
+        run: git clone --quiet --depth=1 https://github.com/PoomSmart/YouPiP.git
+
+      - name: Clone VolumeBoostYT
+        if: ${{ inputs.enable_vbyt }}
+        run: git clone --quiet --depth=1 https://github.com/VasirakCalgux/VolumeBoostYT.git
+
+      - name: Clone DontEatMyContent
+        if: ${{ inputs.enable_demc }}
+        run: git clone --quiet --depth=1 https://github.com/therealFoxster/DontEatMyContent.git
+
+      - name: Clone Return-YouTube-Dislikes
+        if: ${{ inputs.enable_ryd }}
+        run: git clone --quiet --depth=1 https://github.com/PoomSmart/Return-YouTube-Dislikes.git
+
+      - name: Clone YouGetCaption
+        if: ${{ inputs.enable_ygc }}
+        run: git clone --quiet --depth=1 https://github.com/PoomSmart/YouGetCaption.git
+
+      - name: Clone YouQuality
+        if: ${{ inputs.enable_yq }}
+        run: git clone --quiet --depth=1 https://github.com/PoomSmart/YouQuality.git
+
+      - name: Clone YouChooseQuality
+        if: ${{ inputs.enable_ycq }}
+        run: git clone --quiet --depth=1 https://github.com/PoomSmart/YouChooseQuality.git
+
+      - name: Clone YTHoldForSpeed
+        if: ${{ inputs.enable_ythfs }}
+        run: git clone --quiet --depth=1 https://github.com/joshuaseltzer/YTHoldForSpeed.git
+
+      - name: Clone YTUHD
+        if: ${{ inputs.enable_ytuhd }}
+        run: git clone --quiet --depth=1 https://github.com/Tonwalter888/YTUHD.git
+
+      - name: Build YTVideoOverlay
+        if: ${{ inputs.enable_ytvo || inputs.enable_yq || inputs.enable_ygc || inputs.enable_youpip || inputs.enable_ycq || inputs.enable_ytuhd }}
+        run: |
+          cd YTVideoOverlay && make clean package DEBUG=0 FINALPACKAGE=1
+          mv packages/*.deb ../ytvo.deb
+
+      - name: Build YouGroupSettings
+        if: ${{ inputs.enable_ygs || inputs.enable_youpip || inputs.enable_yq || inputs.enable_ycq || inputs.enable_vbyt || inputs.enable_ryd || inputs.enable_demc || inputs.enable_ytabc || inputs.enable_ytweaks || inputs.enable_ygc || inputs.enable_ythfs || inputs.enable_ytuhd }}
+        run: |
+          cd YouGroupSettings && make clean package DEBUG=0 FINALPACKAGE=1
+          mv packages/*.deb ../ygs.deb
+
+      - name: Build YTABConfig
+        if: ${{ inputs.enable_ytabc }}
+        run: |
+          cd YTABConfig && make clean package DEBUG=0 FINALPACKAGE=1
+          mv packages/*.deb ../ytabc.deb
+
+      - name: Build YTweaks
+        if: ${{ inputs.enable_ytweaks }}
+        run: |
+          cd YTweaks && make clean package DEBUG=0 FINALPACKAGE=1
+          mv packages/*.deb ../ytweaks.deb
+
+      - name: Build YouPiP
+        if: ${{ inputs.enable_youpip }}
+        run: |
+          cd YouPiP && make clean package DEBUG=0 FINALPACKAGE=1
+          mv packages/*.deb ../youpip.deb
+
+      - name: Build VolumeBoostYT
+        if: ${{ inputs.enable_vbyt }}
+        run: |
+          cd VolumeBoostYT && make clean package DEBUG=0 FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless ARCHS=arm64
+          mv packages/*.deb ../vbyt.deb
+
+      - name: Build DontEatMyContent
+        if: ${{ inputs.enable_demc }}
+        run: |
+          cd DontEatMyContent && make clean package DEBUG=0 FINALPACKAGE=1
+          mv packages/*.deb ../demc.deb
+
+      - name: Build Return-YouTube-Dislikes
+        if: ${{ inputs.enable_ryd }}
+        run: |
+          cd Return-YouTube-Dislikes && make clean package DEBUG=0 FINALPACKAGE=1
+          mv packages/*.deb ../ryd.deb
+
+      - name: Build YouGetCaption
+        if: ${{ inputs.enable_ygc }}
+        run: |
+          cd YouGetCaption && make clean package DEBUG=0 FINALPACKAGE=1
+          mv packages/*.deb ../ygc.deb
+
+      - name: Build YouQuality
+        if: ${{ inputs.enable_yq }}
+        run: |
+          cd YouQuality && make clean package DEBUG=0 FINALPACKAGE=1
+          mv packages/*.deb ../yq.deb
+
+      - name: Build YouChooseQuality
+        if: ${{ inputs.enable_ycq }}
+        run: |
+          cd YouChooseQuality && make clean package DEBUG=0 FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
+          mv packages/*.deb ../ycq.deb
+
+      - name: Build YTHoldForSpeed
+        if: ${{ inputs.enable_ythfs }}
+        run: |
+          cd YTHoldForSpeed && make clean package DEBUG=0 FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
+          mv packages/*.deb ../ythfs.deb
+
+      - name: Build YTUHD
+        if: ${{ inputs.enable_ytuhd }}
+        run: |
+          cd YTUHD && make clean package DEBUG=0 FINALPACKAGE=1
+          mv packages/*.deb ../ytuhd.deb
+
+      - name: Clone Open in YouTube (Safari extension)
+        run: |
+          git clone --quiet -n --depth=1 --filter=tree:0 https://github.com/BillyCurtis/OpenYouTubeSafariExtension
+          cd OpenYoutubeSafariExtension
+          git sparse-checkout set --no-cone OpenYoutubeSafariExtension.appex
+          git checkout
+          mv *.appex ..
+
+      - name: Upload built debs as artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: built-debs
+          path: |
+            *.deb
+            *.appex
+          if-no-files-found: ignore
+          retention-days: 1
