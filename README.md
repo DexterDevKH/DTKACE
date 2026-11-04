@@ -83,6 +83,20 @@
 * **TrollStore:** Recommended for iOS 14.0 – 17.0 (no revokes, permanent signing).
 * **SideStore / AltStore / Feather / Scarlet / LiveContainer:** Supported for iOS 15.0 and newer.
 
+### 📦 SideStore & AltStore Source
+
+Add DTKACE Plus directly to your sideloading manager with one tap:
+
+* 📱 **[Add to SideStore](https://dexterdevkh.github.io/dexter-sources/?source=dtkace&r=sidestore)**
+* 🌸 **[Add to Feather](https://dexterdevkh.github.io/dexter-sources/?source=dtkace&r=feather)**
+* 🌿 **[Add to AltStore](https://dexterdevkh.github.io/dexter-sources/?source=dtkace&r=altstore)**
+* 💙 **[Add to LiveContainer](https://dexterdevkh.github.io/dexter-sources/?source=dtkace&r=livecontainer)**
+
+**Manual Source URL:**
+```text
+https://dexterdevkh.github.io/dexter-sources/dtkace.json
+```
+
 > [!NOTE]
 > Tested on YouTube versions:
 > * **iOS 16:** Base YouTube `v21.33.6`
