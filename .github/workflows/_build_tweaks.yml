@@ -295,7 +295,33 @@ jobs:
       - name: Build LowContrastMode
         if: ${{ inputs.enable_lcm }}
         run: |
-          cd YTLowContrastMode && make clean package DEBUG=0 FINALPACKAGE=1
+          cd YTLowContrastMode
+          python3 - << 'EOF'
+          with open("Tweak.h", "r", encoding="utf-8") as f:
+              content = f.read()
+
+          header_patch = """
+          #ifndef IS_ENABLED
+          #define IS_ENABLED(k) ([[NSUserDefaults standardUserDefaults] objectForKey:k] ? [[NSUserDefaults standardUserDefaults] boolForKey:k] : ([[NSUserDefaults standardUserDefaults] objectForKey:@"low_contrast_mode"] ? [[NSUserDefaults standardUserDefaults] boolForKey:@"low_contrast_mode"] : YES))
+          #endif
+
+          @interface YTCollectionViewCell : UICollectionViewCell
+          @end
+
+          @interface YTQTMButton : UIButton
+          @end
+          """
+
+          if "@interface YTCollectionViewCell" not in content:
+              if "@interface YTSettingsCell" in content:
+                  content = content.replace("@interface YTSettingsCell", header_patch + "\n@interface YTSettingsCell")
+              else:
+                  content = header_patch + "\n" + content
+
+          with open("Tweak.h", "w", encoding="utf-8") as f:
+              f.write(content)
+          EOF
+          make clean package DEBUG=0 FINALPACKAGE=1
           mv packages/*.deb ../lcm.deb
 
       - name: Build YouGetCaption
