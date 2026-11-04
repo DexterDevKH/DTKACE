@@ -98,7 +98,7 @@ jobs:
       - name: Cache Theos
         if: ${{ inputs.enable_ytabc || inputs.enable_ytweaks || inputs.enable_youpip || inputs.enable_vbyt || inputs.enable_demc || inputs.enable_ryd || inputs.enable_ytvo || inputs.enable_ygc || inputs.enable_yq || inputs.enable_ycq || inputs.enable_ythfs || inputs.enable_ygs || inputs.enable_ytuhd }}
         id: theos
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         env:
           cache-name: theos_cache_9bc7340
         with:
@@ -108,7 +108,7 @@ jobs:
 
       - name: Setup Theos
         if: ${{ (inputs.enable_ytabc || inputs.enable_ytweaks || inputs.enable_youpip || inputs.enable_vbyt || inputs.enable_demc || inputs.enable_ryd || inputs.enable_ytvo || inputs.enable_ygc || inputs.enable_yq || inputs.enable_ycq || inputs.enable_ythfs || inputs.enable_ygs || inputs.enable_ytuhd) && steps.theos.outputs.cache-hit != 'true' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           repository: theos/theos
           ref: 9bc73406cf80b711ef4d02c15ff1dedc4478a275
@@ -161,26 +161,27 @@ jobs:
           fi
           echo "DEB validation passed successfully!"
 
-      - name: Clone YouTubeHeader
+      - name: Clone YouTubeHeader and PSHeader
         if: ${{ inputs.enable_ytabc || inputs.enable_ytweaks || inputs.enable_youpip || inputs.enable_vbyt || inputs.enable_demc || inputs.enable_ryd || inputs.enable_ytvo || inputs.enable_ygc || inputs.enable_yq || inputs.enable_ycq || inputs.enable_ythfs || inputs.enable_ygs || inputs.enable_ytuhd }}
         run: |
+          # Clone YouTubeHeader
           if [ -d "$THEOS/include/YouTubeHeader" ]; then
             cd $THEOS/include/YouTubeHeader && git pull
           else
             cd $THEOS/include && git clone --quiet --depth=1 https://github.com/PoomSmart/YouTubeHeader.git
           fi
-          if [ "${{ inputs.enable_demc }}" = "true" ]; then
-            rm -rf "$THEOS/include/YTHeaders"
-            cp -r "$THEOS/include/YouTubeHeader" "$THEOS/include/YTHeaders"
-          fi
 
-      - name: Clone PSHeader
-        if: ${{ inputs.enable_ytabc || inputs.enable_ytweaks || inputs.enable_youpip || inputs.enable_vbyt || inputs.enable_demc || inputs.enable_ryd || inputs.enable_ytvo || inputs.enable_ygc || inputs.enable_yq || inputs.enable_ycq || inputs.enable_ythfs || inputs.enable_ygs || inputs.enable_ytuhd }}
-        run: |
+          # Clone PSHeader
           if [ -d "$THEOS/include/PSHeader" ]; then
             cd $THEOS/include/PSHeader && git pull
           else
             cd $THEOS/include && git clone --quiet --depth=1 https://github.com/PoomSmart/PSHeader.git
+          fi
+
+          # Copy YouTubeHeader to YTHeaders if DontEatMyContent is enabled
+          if [ "${{ inputs.enable_demc }}" = "true" ]; then
+            rm -rf "$THEOS/include/YTHeaders"
+            cp -r "$THEOS/include/YouTubeHeader" "$THEOS/include/YTHeaders"
           fi
 
       - name: Clone YTVideoOverlay
@@ -322,7 +323,7 @@ jobs:
           mv *.appex ..
 
       - name: Upload built debs as artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: built-debs
           path: |

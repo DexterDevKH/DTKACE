@@ -150,7 +150,7 @@ jobs:
           [ -n "${{ secrets.TWEAK_URL }}" ] && echo "::add-mask::${{ secrets.TWEAK_URL }}"
 
       - name: Download built debs
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           name: built-debs
           path: ${{ github.workspace }}
@@ -236,6 +236,9 @@ jobs:
         run: pipx install --force https://github.com/asdfzxcvbn/pyzule-rw/archive/main.zip
 
       - name: Inject tweaks into IPA
+        env:
+          DISPLAY_NAME: ${{ github.event.inputs.display_name }}
+          BUNDLE_ID: ${{ github.event.inputs.bundle_id }}
         run: |
           tweaks=""
           [ -f "ytkace.deb" ] && tweaks="$tweaks ytkace.deb"
@@ -246,7 +249,7 @@ jobs:
             fi
           done
           echo "Injecting components: $tweaks"
-          cyan -i youtube.ipa -o DTKACEPlus_v${{ env.TWEAK_VERSION }}_${{ env.YT_VERSION }}.ipa -uwef $tweaks -n "${{ github.event.inputs.display_name }}" -b ${{ github.event.inputs.bundle_id }}
+          cyan -i youtube.ipa -o DTKACEPlus_v${{ env.TWEAK_VERSION }}_${{ env.YT_VERSION }}.ipa -uwef $tweaks -n "$DISPLAY_NAME" -b "$BUNDLE_ID"
 
       - name: Upload to GitHub Releases
         uses: softprops/action-gh-release@v3
